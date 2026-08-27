@@ -37,9 +37,15 @@ class MockAdapter(SourceAdapter):
         self._presale_heavy = presale_heavy
 
     def fetch_listings(self, cities: list[str], max_price: float) -> list[RawListing]:
-        rng = random.Random(self._seed)
         out = []
         for city in cities:
+            # Reseeded per city (not one rng advanced across the whole list) so
+            # each city's listings/external_ids are stable regardless of the
+            # cities list's iteration order - otherwise a reordering (e.g. from
+            # /areas settings changing) shifts every later city's rng draws,
+            # producing different external_ids for what's conceptually the same
+            # listing and leaving the old rows as orphaned duplicates.
+            rng = random.Random(f"{self._seed}:{city}")
             for i in range(rng.randint(0, 2)):
                 asset_type = (
                     rng.choice(["new_project", "pinui_binui"])

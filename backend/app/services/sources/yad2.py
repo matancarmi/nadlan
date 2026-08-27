@@ -183,10 +183,12 @@ class Yad2Adapter(SourceAdapter):
         return out
 
     def _mock_listings(self, cities: list[str], max_price: float) -> list[RawListing]:
-        rng = random.Random(42)  # deterministic mock data across runs
         out = []
         asset_types = ["rooms_4", "garden_apartment", "new_project"]
         for city in cities:
+            # Reseeded per city so listings/external_ids are stable regardless
+            # of the cities list's iteration order - see MockAdapter for why.
+            rng = random.Random(f"yad2:{city}")
             for i in range(rng.randint(1, 3)):
                 size = rng.randint(75, 130)
                 price = rng.randint(int(max_price * 0.55), int(max_price))
