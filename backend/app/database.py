@@ -23,6 +23,7 @@ def init_db():
     from . import models  # noqa: F401 ensure models are registered
     Base.metadata.create_all(bind=engine)  # creates brand-new tables only
     _run_lightweight_migrations()
+    _sync_postgres_enum_types()
 
 
 def _run_lightweight_migrations():
@@ -48,3 +49,54 @@ def _run_lightweight_migrations():
             if column_name not in existing_columns:
                 with engine.begin() as conn:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
+
+
+def _sync_postgres_enum_types():
+    """Add any new Python enum members to their matching Postgres native ENUM
+    type. SQLAlchemy's Enum() creates a real Postgres ENUM type from whatever
+    members existed at table-creation time — adding a value to the Python
+    enum later (e.g. DecisionStatus.MAYBE) does NOT expand that Postgres
+    type, so writing the new value would fail with "invalid input value for
+    enum" until this runs. No-op on SQLite, which stores enums as plain text.
+
+    Important: SQLAlchemy's default Enum() stores each member's NAME
+    ("PENDING") as the Postgres label, not its `.value` ("pending") — even
+    though this project's enums subclass `str` and their members compare
+    equal to their lowercase value. Verified directly against a real
+    Postgres 16 instance before relying on it here.
+    """
+    import logging
+
+    import sqlalchemy as sa
+    from sqlalchemy import text
+
+    logger = logging.getLogger(__name__)
+    if engine.dialect.name != "postgresql":
+        return
+
+    for table in Base.metadata.tables.values():
+        for column in table.columns:
+            col_type = column.type
+            if not (isinstance(col_type, sa.Enum) and col_type.enum_class):
+                continue
+            pg_type_name = col_type.name
+            try:
+                with engine.begin() as conn:
+                    existing_labels = {
+                        row[0]
+                        for row in conn.execute(
+                            text(
+                                "SELECT enumlabel FROM pg_enum "
+                                "WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = :name)"
+                            ),
+                            {"name": pg_type_name},
+                        )
+                    }
+                    for member in col_type.enum_class:
+                        if member.name not in existing_labels:
+                            # ALTER TYPE ... ADD VALUE takes no bind params; these
+                            # values come from our own code's enum definitions, not
+                            # user input, so inlining is safe.
+                            conn.execute(text(f"ALTER TYPE \"{pg_type_name}\" ADD VALUE IF NOT EXISTS '{member.name}'"))
+            except Exception as exc:  # noqa: BLE001 - never block startup over this
+                logger.warning("Could not sync Postgres enum type %r: %s", pg_type_name, exc)
