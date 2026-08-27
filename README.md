@@ -108,11 +108,15 @@ Runs on `http://localhost:3000`.
 
 ## Product pages
 
-- `/` — **Discovery feed** ("Tinder mode"): swipe/tap ❤️ save, ❌ pass, or 🔖 save-for-later
+- `/` — **Discovery feed** ("Tinder mode"): swipe/tap ❤️ save, ❌ pass, or 🔖 push-to-back
   on one property at a time. Passed properties are hidden forever; liked ones move to Saved
-  Inventory. 🔖 is a bookmark, not a final decision — the property stays visible in the
-  discovery feed (it'll come around again) and also appears on `/later`, until you actually
-  decide ❤️/❌ on it from either place.
+  Inventory. 🔖 is a bookmark, not a final decision — it moves the card to the end of the
+  current queue (you keep cycling through everything else, then see it again) and also
+  appears on `/later`, until you actually decide ❤️/❌ on it from either place. An
+  **➕ הוספת נכס לפי קישור** button opens a modal to paste a listing URL (Yad2 or any other
+  site) - it's fetched, parsed, and dropped straight into the feed; if too little could be
+  parsed automatically, the modal falls back to a short manual-entry form (pre-filled with
+  whatever partial data - title, image, price - was found) so the workflow never gets stuck.
 - `/saved` — **Saved Inventory Hub**: all liked properties, filterable by status
   (Under Review / Contacted Agent / Archived), with private notes per property.
 - `/later` — everything bookmarked for later that's still undecided; rate ❤️/❌ from here,

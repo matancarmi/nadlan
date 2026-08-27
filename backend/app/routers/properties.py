@@ -7,24 +7,9 @@ from ..database import get_db
 from ..models import DecisionStatus, InventoryStatus, Property
 from ..schemas import DecisionUpdate, InventoryUpdate, PropertyOut, SaveForLaterUpdate
 from ..security import require_session
-from ..services.finance import attach_finance_metrics, get_or_create_finance_settings
-from ..services.geo import get_or_create_settings as get_or_create_area_settings
+from ..services.finance import enrich_properties_for_response as _enrich
 
 router = APIRouter(prefix="/api/properties", tags=["properties"], dependencies=[Depends(require_session)])
-
-
-def _enrich(properties: list[Property], db: Session) -> list[Property]:
-    """Attach the dynamic, settings-dependent fields (mortgage payment, cash
-    flow, premium-area flag) as plain instance attributes - not mapped
-    columns, so this never touches the DB, just the response. Computed here
-    (rather than stored) so changing Finance/Area settings applies
-    immediately to every property on the very next fetch."""
-    finance_settings = get_or_create_finance_settings(db)
-    premium_cities = set(get_or_create_area_settings(db).premium_cities or [])
-    for prop in properties:
-        for key, value in attach_finance_metrics(prop, finance_settings, premium_cities).items():
-            setattr(prop, key, value)
-    return properties
 
 
 @router.get("/feed", response_model=list[PropertyOut])

@@ -62,4 +62,8 @@ export const api = {
   getChatMessages: () => request<import("./types").ChatMessage[]>("/api/chat/messages"),
   sendChatMessage: (content: string) =>
     request<import("./types").ChatMessage>("/api/chat/messages", { method: "POST", body: JSON.stringify({ content }) }),
+  ingestUrl: (url: string) =>
+    request<import("./types").IngestUrlResult>("/api/properties/ingest-url", { method: "POST", body: JSON.stringify({ url }) }),
+  createManualProperty: (payload: import("./types").ManualPropertyCreate) =>
+    request<import("./types").Property>("/api/properties/manual", { method: "POST", body: JSON.stringify(payload) }),
 };

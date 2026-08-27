@@ -9,6 +9,7 @@ round trip - both implementations must stay in sync.
 from sqlalchemy.orm import Session
 
 from ..models import FinanceSettings, Property
+from .geo import get_or_create_settings as get_or_create_area_settings
 
 # A standard Israeli mortgage mix ("תמהיל ממוצע"): roughly a third prime-rate
 # (variable, tracks Bank of Israel base rate), a third fixed unlinked, a
@@ -72,3 +73,17 @@ def attach_finance_metrics(prop: Property, finance_settings: FinanceSettings, pr
             metrics["monthly_cash_flow"] = round(prop.estimated_monthly_rent - calc["monthly_payment"], 0)
     metrics["is_premium_area"] = prop.city in premium_cities
     return metrics
+
+
+def enrich_properties_for_response(properties: list[Property], db: Session) -> list[Property]:
+    """Attach the dynamic, settings-dependent fields (mortgage payment, cash
+    flow, premium-area flag) as plain instance attributes - not mapped
+    columns, so this never touches the DB, just the response. Shared by
+    every router that returns PropertyOut, so changing Finance/Area settings
+    applies immediately to every property on the very next fetch, everywhere."""
+    finance_settings = get_or_create_finance_settings(db)
+    premium_cities = set(get_or_create_area_settings(db).premium_cities or [])
+    for prop in properties:
+        for key, value in attach_finance_metrics(prop, finance_settings, premium_cities).items():
+            setattr(prop, key, value)
+    return properties

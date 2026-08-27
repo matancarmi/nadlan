@@ -151,3 +151,30 @@ class ChatMessageOut(BaseModel):
 
 class ChatRequest(BaseModel):
     content: str
+
+
+class IngestUrlRequest(BaseModel):
+    url: str
+
+
+class ManualPropertyCreate(BaseModel):
+    title: str
+    city: str
+    street: str | None = None
+    asset_type: AssetType = AssetType.OTHER
+    rooms: float | None = None
+    size_sqm: float | None = None
+    asking_price: float
+    source_url: str | None = None
+    image_url: str | None = None
+    contact_info: str | None = None
+    notes: str | None = None
+
+
+class IngestUrlResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    status: Literal["created", "needs_manual_input"]
+    property: PropertyOut | None = None
+    prefill: dict | None = None
+    message: str | None = None

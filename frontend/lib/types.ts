@@ -97,3 +97,36 @@ export interface ChatMessage {
   content: string;
   created_at: string;
 }
+
+export interface ManualPrefill {
+  source_url?: string | null;
+  title?: string | null;
+  image_url?: string | null;
+  asking_price?: number | null;
+  rooms?: number | null;
+  size_sqm?: number | null;
+  city?: string | null;
+  street?: string | null;
+  asset_type?: AssetType | null;
+}
+
+export interface IngestUrlResult {
+  status: "created" | "needs_manual_input";
+  property: Property | null;
+  prefill: ManualPrefill | null;
+  message: string | null;
+}
+
+export interface ManualPropertyCreate {
+  title: string;
+  city: string;
+  street?: string | null;
+  asset_type: AssetType;
+  rooms?: number | null;
+  size_sqm?: number | null;
+  asking_price: number;
+  source_url?: string | null;
+  image_url?: string | null;
+  contact_info?: string | null;
+  notes?: string | null;
+}
