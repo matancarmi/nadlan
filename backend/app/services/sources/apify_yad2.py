@@ -71,7 +71,9 @@ class ApifyYad2Adapter(SourceAdapter):
                 timeout=run_timeout + timedelta(seconds=30),  # client-side wait budget, slightly above the run's own
                 max_items=settings.apify_max_items,
             )
-            dataset_id = run.get("defaultDatasetId") if run else None
+            # apify-client 3.x's actor().call() returns a typed `Run` Pydantic
+            # model, not a dict - attribute access (snake_case), not .get()/[].
+            dataset_id = run.default_dataset_id if run else None
             items = list(client.dataset(dataset_id).iterate_items()) if dataset_id else []
         except Exception as exc:  # noqa: BLE001 - any Apify failure -> fall back, never break the pipeline
             logger.error("Apify Yad2 run failed (%s) - falling back to mock data", exc)
