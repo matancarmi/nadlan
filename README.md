@@ -37,41 +37,44 @@ that runs the actual scraping on its own infrastructure and handles that complia
 question itself, rather than this app attempting to evade Yad2's anti-bot defenses (which
 it deliberately doesn't do).
 
-**There is no single "official" Yad2 actor** - you pick one from the
-[Apify Store](https://apify.com/store) (search "yad2") and verify it works with your own
-account before relying on it. To wire one up:
+**Verified and working end-to-end against a live run** (via Railway, which has normal
+internet access, unlike this project's sandboxed dev environment): the default actor is
+[`swerve/yad2-scraper`](https://apify.com/swerve/yad2-scraper). To wire it up yourself:
 
 1. Create an Apify account and get an API token from your
    [Apify Console → Settings → Integrations](https://console.apify.com/account/integrations).
-2. Pick a Yad2 scraper actor from the Apify Store, note its id (`username/actor-name`,
-   e.g. `someone/yad2-scraper` - shown on the actor's page).
-3. On Railway, set on the **backend** service: `APIFY_API_TOKEN` (your token) and
-   `APIFY_ACTOR_ID` (the actor id from step 2).
-4. Trigger `POST /api/ingest/run` and check the logs for `Apify Yad2 run returned N real
-   listings` vs. a fallback warning. If it falls back, the actor's input or output shape
-   likely differs from what this integration assumes by default:
-   - **Input**: by default, this sends `{"startUrls": [...Yad2 search-result URLs per
-     target city...], "maxItems": ...}` - the most common shape generic Yad2 actors accept.
-     If your actor expects something else (e.g. a structured `search` object), set
-     `APIFY_ACTOR_INPUT_JSON` to override the input entirely.
-   - **Output mapping**: `_parse_item()` in `apify_yad2.py` tries several common field-name
-     variants (`price`/`Price`/`askingPrice`, `rooms`/`Rooms`/`roomsCount`, etc.) - this is
-     a best-effort guess, not a verified schema for any specific actor. Pull a sample run's
-     dataset (Apify Console → your run → Dataset → Export) and adjust the key lists in
-     `_first()` calls to match what your actor actually returns.
-5. Growth-area cities (marked ⭐ on `/areas`) are always included in the Apify search
-   alongside your main search area, even if outside it - so e.g. flagging Bat Yam as a
-   growth area gets it searched regardless of your selected corridor.
+2. On Railway, set on the **backend** service: `APIFY_API_TOKEN` (your token) and
+   `APIFY_ACTOR_ID=swerve/yad2-scraper`.
+3. Trigger `POST /api/ingest/run` and check the logs for `Apify Yad2 run returned N real
+   listings` vs. a fallback warning.
 
-**Verified vs. not**: this sandbox blocks outbound calls to `api.apify.com` the same way
-it blocks `yad2.co.il`, so the actual scraping run could not be tested end-to-end. What
-*was* verified: the `apify-client` API calls used here (`actor().call()`,
-`dataset().iterate_items()`) match the real installed client's method signatures exactly
-(introspected directly against `apify-client==3.1.3`), the item-parsing logic was
-unit-tested against several synthetic realistic dataset shapes, and a real (failing, since
-the sandbox blocks it) network call was made to confirm the whole path falls back to mock
-data cleanly rather than crashing. The actor choice, its real input schema, and its real
-output field names are yours to verify against a live run.
+An earlier actor tried here (`amit123/YadScraper`) turned out, on a real run, to only
+scrape **rental** listings no matter what URL/category was passed in - a fundamental
+mismatch for an app whose purpose is finding properties to *buy*. `swerve/yad2-scraper`'s
+`dealType` input is required and explicit (`rent`/`buy`/`commercial`), and this
+integration always sends `dealType: "buy"`, so that ambiguity can't recur. Its `city`
+input also accepts the same Hebrew city names already used throughout this app
+(`config.target_cities`), so no city-id lookup table is needed.
+
+**Cost cap**: Apify enforces a per-run spending cap (this account's default cut a run
+short at $1.00, mid-way through the target cities, via `Status: ABORTED... reached its
+maximum cost`). Whatever was scraped before the cutoff is still used - the pipeline
+doesn't fail because of it - but a capped run won't cover every target city every day.
+Lower `APIFY_MAX_ITEMS` (default 200, applied per city) if you want a full daily sweep of
+all target + growth-area cities to fit inside your cap, or raise the cap in your Apify
+account if you want deeper per-city coverage instead.
+
+**Output mapping**: `_parse_item()` in `apify_yad2.py` maps this actor's real verified
+field names directly - `url` (a genuine `https://www.yad2.co.il/item/<id>` link),
+`streetName`, `neighbourhood`, `cityHebrew`, `price`, `rooms`, `areaSqm`, `images`,
+`listingDescription`, `contactName`/`contactPhone`. If you swap in a different actor, set
+`APIFY_ACTOR_INPUT_JSON` to override the input shape, and adjust the key lists in
+`_parse_item()`'s `_first()` calls to match its real output (pull a sample from Apify
+Console → your run → Dataset → Export rather than guessing).
+
+Growth-area cities (marked ⭐ on `/areas`) are always included in the Apify search
+alongside your main search area, even if outside it - so e.g. flagging Bat Yam as a
+growth area gets it searched regardless of your selected corridor.
 
 **Important — verify after deploying:** this project was built in a sandboxed dev
 environment whose network policy blocks outbound calls to `yad2.co.il` and
