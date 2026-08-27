@@ -1,0 +1,76 @@
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import DecisionStatus, InventoryStatus, Property
+from ..schemas import DecisionUpdate, InventoryUpdate, PropertyOut
+from ..security import require_session
+
+router = APIRouter(prefix="/api/properties", tags=["properties"], dependencies=[Depends(require_session)])
+
+
+@router.get("/feed", response_model=list[PropertyOut])
+def get_feed(limit: int = 20, db: Session = Depends(get_db)):
+    """Discovery feed: properties not yet swiped on, newest first."""
+    return (
+        db.query(Property)
+        .filter(Property.decision == DecisionStatus.PENDING)
+        .order_by(Property.is_high_value_deal.desc(), Property.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+@router.post("/{property_id}/decision", response_model=PropertyOut)
+def set_decision(property_id: int, payload: DecisionUpdate, db: Session = Depends(get_db)):
+    """Swipe action: like (save) or pass (discard/hide forever)."""
+    prop = db.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    prop.decision = payload.decision
+    prop.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(prop)
+    return prop
+
+
+@router.get("/saved", response_model=list[PropertyOut])
+def get_saved(
+    status: InventoryStatus | None = None,
+    include_archived: bool = True,
+    db: Session = Depends(get_db),
+):
+    """Saved Inventory Hub: all liked properties, optionally filtered by status."""
+    query = db.query(Property).filter(Property.decision == DecisionStatus.LIKED)
+    if status is not None:
+        query = query.filter(Property.inventory_status == status)
+    elif not include_archived:
+        query = query.filter(Property.inventory_status != InventoryStatus.ARCHIVED)
+    return query.order_by(Property.updated_at.desc()).all()
+
+
+@router.patch("/{property_id}/inventory", response_model=PropertyOut)
+def update_inventory(property_id: int, payload: InventoryUpdate, db: Session = Depends(get_db)):
+    prop = db.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if payload.inventory_status is not None:
+        prop.inventory_status = payload.inventory_status
+    if payload.notes is not None:
+        prop.notes = payload.notes
+    db.commit()
+    db.refresh(prop)
+    return prop
+
+
+@router.get("/passed", response_model=list[PropertyOut])
+def get_passed(db: Session = Depends(get_db)):
+    """Hidden archive of discarded properties (kept so they never resurface, viewable on request)."""
+    return (
+        db.query(Property)
+        .filter(Property.decision == DecisionStatus.PASSED)
+        .order_by(Property.decided_at.desc())
+        .all()
+    )
