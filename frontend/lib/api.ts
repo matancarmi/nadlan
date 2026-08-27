@@ -1,4 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+// Relative: requests go to the frontend's own origin, which next.config.js
+// rewrites to the backend server-side. This keeps everything same-origin
+// from the browser's perspective, so the session cookie is first-party.
+const API_BASE = "";
 
 export class ApiError extends Error {
   status: number;

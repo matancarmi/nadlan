@@ -77,10 +77,14 @@ Runs on `http://localhost:3000`.
    `ANTHROPIC_API_KEY` (for AI analysis), `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`/
    `ALERT_EMAIL_TO` (for deal-alert emails — e.g. a Gmail address + an
    [App Password](https://myaccount.google.com/apppasswords)). Leave `DATABASE_URL` as
-   Railway's provided Postgres URL and `SESSION_COOKIE_SECURE` unset (defaults to `true`,
-   required since frontend/backend are on different domains).
+   Railway's provided Postgres URL and `SESSION_COOKIE_SECURE` unset (defaults to `true`).
 3. Deploy `frontend/` as a second Railway service (Nixpacks auto-detects Next.js). Set
-   `NEXT_PUBLIC_API_BASE_URL` to the backend service's public URL.
+   `BACKEND_URL` (server-side only, no `NEXT_PUBLIC_` prefix) to the backend service's
+   URL — `next.config.js` proxies all `/api/*` browser requests to it. This keeps every
+   request same-origin from the browser's point of view, which matters because the
+   frontend and backend live on different Railway subdomains: without the proxy the
+   session cookie would be a cross-site (third-party) cookie, which modern Chrome/Safari
+   block by default and login would silently fail to persist.
 4. The daily ingestion runs automatically via the in-process scheduler once the backend
    service is up — no separate cron service needed. Adjust the time with
    `INGESTION_CRON_HOUR`.
