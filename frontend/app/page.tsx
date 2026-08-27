@@ -57,9 +57,10 @@ export default function DiscoveryFeed() {
       // (also bookmarked so it's findable on /later). Locally, move it to
       // the very end of the current queue instead of removing it: it keeps
       // cycling through the same discovery feed, just deprioritized behind
-      // everything not yet viewed this session.
-      await api.saveForLater(current.id);
-      setQueue((q) => (q ? [...q.slice(1), current] : q));
+      // everything not yet viewed this session. Use the server's response
+      // (not the stale local `current`) so the 🔖 badge reflects the update.
+      const updated = await api.saveForLater(current.id);
+      setQueue((q) => (q ? [...q.slice(1), updated] : q));
     } catch (e: any) {
       setError(e.message || "שגיאה בדחיפה לסוף התור");
     } finally {

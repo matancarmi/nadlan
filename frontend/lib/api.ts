@@ -36,7 +36,10 @@ export const api = {
   decide: (id: number, decision: "liked" | "passed") =>
     request(`/api/properties/${id}/decision`, { method: "POST", body: JSON.stringify({ decision }) }),
   saveForLater: (id: number, saved_for_later = true) =>
-    request(`/api/properties/${id}/save-for-later`, { method: "POST", body: JSON.stringify({ saved_for_later }) }),
+    request<import("./types").Property>(`/api/properties/${id}/save-for-later`, {
+      method: "POST",
+      body: JSON.stringify({ saved_for_later }),
+    }),
   getSaved: () => request<import("./types").Property[]>("/api/properties/saved"),
   getLater: () => request<import("./types").Property[]>("/api/properties/later"),
   updateInventory: (id: number, payload: { inventory_status?: string; notes?: string }) =>
