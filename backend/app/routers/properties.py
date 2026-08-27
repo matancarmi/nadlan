@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import DecisionStatus, InventoryStatus, Property
-from ..schemas import DecisionUpdate, InventoryUpdate, PropertyOut
+from ..schemas import DecisionUpdate, InventoryUpdate, PropertyOut, SaveForLaterUpdate
 from ..security import require_session
 from ..services.finance import attach_finance_metrics, get_or_create_finance_settings
 from ..services.geo import get_or_create_settings as get_or_create_area_settings
@@ -42,12 +42,27 @@ def get_feed(limit: int = 20, db: Session = Depends(get_db)):
 
 @router.post("/{property_id}/decision", response_model=PropertyOut)
 def set_decision(property_id: int, payload: DecisionUpdate, db: Session = Depends(get_db)):
-    """Swipe action: like (save), pass (discard/hide forever), or maybe (save for later)."""
+    """Final swipe decision: like (save) or pass (discard/hide forever)."""
     prop = db.get(Property, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
     prop.decision = payload.decision
     prop.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(prop)
+    return _enrich([prop], db)[0]
+
+
+@router.post("/{property_id}/save-for-later", response_model=PropertyOut)
+def set_save_for_later(property_id: int, payload: SaveForLaterUpdate, db: Session = Depends(get_db)):
+    """Bookmark (or un-bookmark) a property for later. This is NOT a final
+    decision: `decision` is left untouched, so a bookmarked property stays
+    PENDING and keeps showing up in the discovery feed until the user
+    actually likes or passes it."""
+    prop = db.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    prop.saved_for_later = payload.saved_for_later
     db.commit()
     db.refresh(prop)
     return _enrich([prop], db)[0]
@@ -84,12 +99,14 @@ def update_inventory(property_id: int, payload: InventoryUpdate, db: Session = D
 
 @router.get("/later", response_model=list[PropertyOut])
 def get_later(db: Session = Depends(get_db)):
-    """Properties marked "save for later" - not in the discovery feed, not yet
-    fully decided; revisit here and finish deciding like/pass."""
+    """Properties bookmarked "save for later" that are still undecided -
+    also still visible in the discovery feed; revisit here and finish
+    deciding like/pass whenever ready. Liking or passing removes a property
+    from this list automatically (its decision is no longer PENDING)."""
     properties = (
         db.query(Property)
-        .filter(Property.decision == DecisionStatus.MAYBE)
-        .order_by(Property.decided_at.desc())
+        .filter(Property.saved_for_later.is_(True), Property.decision == DecisionStatus.PENDING)
+        .order_by(Property.updated_at.desc())
         .all()
     )
     return _enrich(properties, db)

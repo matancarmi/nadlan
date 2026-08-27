@@ -42,6 +42,23 @@ somewhere with normal internet access you should:
    `tax_authority.py` — these were my best-effort guesses and may need correcting against
    the live site / dataset.
 
+**On Yad2's anti-bot protection specifically:** live testing (from Railway, which has
+normal internet access unlike the dev sandbox) shows Yad2's PerimeterX protection
+actively redirects these requests to a CAPTCHA/validation page — so right now every
+"Yad2" listing in the database is really the mock fallback. The adapter retries
+transient failures (timeouts, 5xx) with backoff and reports blocked-vs-broken separately
+in the logs, and supports an optional `YAD2_PROXY_URL` env var to route through your own
+paid proxy or a commercial scraping API (Apify, ScrapingBee — see below) if you have one.
+Deliberately NOT implemented: CAPTCHA solving or fingerprint/IP spoofing to defeat
+PerimeterX — that crosses from resilient scraping into actively evading a site's anti-bot
+defenses, which this project stays away from. If real Yad2 listings matter to you, a paid
+scraping API is the realistic path (it handles that compliance question itself).
+
+**Image policy:** a property only ever shows a photo it actually scraped from its source
+(currently: none, since Yad2 is blocked as above). No placeholder/stock photo is ever
+substituted — a listing without a genuine image shows a blank tile with a link to the
+original listing instead ("בשביל תמונה אנא כנס לקישור").
+
 ## Local development
 
 ### Backend
@@ -93,10 +110,13 @@ Runs on `http://localhost:3000`.
 
 - `/` — **Discovery feed** ("Tinder mode"): swipe/tap ❤️ save, ❌ pass, or 🔖 save-for-later
   on one property at a time. Passed properties are hidden forever; liked ones move to Saved
-  Inventory; "for later" ones move to `/later` to be finalized without cluttering the feed.
+  Inventory. 🔖 is a bookmark, not a final decision — the property stays visible in the
+  discovery feed (it'll come around again) and also appears on `/later`, until you actually
+  decide ❤️/❌ on it from either place.
 - `/saved` — **Saved Inventory Hub**: all liked properties, filterable by status
   (Under Review / Contacted Agent / Archived), with private notes per property.
-- `/later` — properties saved for later; finish rating them ❤️/❌ whenever you're ready.
+- `/later` — everything bookmarked for later that's still undecided; rate ❤️/❌ from here,
+  or remove the bookmark to leave it in the regular feed only.
 - `/guide` — **Planning Stages Guide**: plain-Hebrew explanations of תב"ע, הפקדה,
   הוועדה המקומית/המחוזית, היתר בנייה, and the 4 stages of פינוי בינוי.
 - `/areas` — configure the search area (pick specific cities, or an address + radius in km,

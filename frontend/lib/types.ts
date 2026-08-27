@@ -1,5 +1,5 @@
 export type AssetType = "rooms_4" | "garden_apartment" | "new_project" | "pinui_binui" | "other";
-export type DecisionStatus = "pending" | "liked" | "passed" | "maybe";
+export type DecisionStatus = "pending" | "liked" | "passed";
 export type InventoryStatus = "under_review" | "contacted_agent" | "archived";
 
 export interface Property {
@@ -29,6 +29,7 @@ export interface Property {
   ai_cons: string | null;
   ai_verdict: string | null;
   decision: DecisionStatus;
+  saved_for_later: boolean;
   inventory_status: InventoryStatus;
   notes: string | null;
   created_at: string;

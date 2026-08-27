@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -34,6 +35,7 @@ class PropertyOut(BaseModel):
     ai_cons: str | None
     ai_verdict: str | None
     decision: DecisionStatus
+    saved_for_later: bool
     inventory_status: InventoryStatus
     notes: str | None
     created_at: datetime
@@ -52,12 +54,18 @@ class PropertyOut(BaseModel):
 
 
 class DecisionUpdate(BaseModel):
-    decision: DecisionStatus
+    # Only a final decision - liked or passed. "Save for later" is a
+    # bookmark, not a decision; see POST /{id}/save-for-later instead.
+    decision: Literal[DecisionStatus.LIKED, DecisionStatus.PASSED]
 
 
 class InventoryUpdate(BaseModel):
     inventory_status: InventoryStatus | None = None
     notes: str | None = None
+
+
+class SaveForLaterUpdate(BaseModel):
+    saved_for_later: bool = True
 
 
 class IngestionResult(BaseModel):

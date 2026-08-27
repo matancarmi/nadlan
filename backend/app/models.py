@@ -18,10 +18,13 @@ class AssetType(str, enum.Enum):
 
 
 class DecisionStatus(str, enum.Enum):
-    PENDING = "pending"   # not yet swiped -> shows in discovery feed
+    PENDING = "pending"   # not yet finally decided -> shows in discovery feed
     LIKED = "liked"       # saved -> shows in Saved Inventory
     PASSED = "passed"     # discarded -> hidden archive, never shown again
-    MAYBE = "maybe"       # save for later -> leaves the feed, revisit on /later to decide
+    # MAYBE is no longer written (see Property.saved_for_later) but kept
+    # defined - a real Postgres enum type can't easily drop a label once
+    # added, and any already-stored MAYBE rows are migrated away from it.
+    MAYBE = "maybe"
 
 
 class InventoryStatus(str, enum.Enum):
@@ -80,6 +83,11 @@ class Property(Base):
 
     # --- User workflow ---
     decision: Mapped[DecisionStatus] = mapped_column(Enum(DecisionStatus), default=DecisionStatus.PENDING, index=True)
+    # "Save for later" is a bookmark, not a decision: it does NOT change
+    # `decision`, so a bookmarked property stays PENDING and keeps appearing
+    # in the discovery feed until the user actually decides like/pass on it.
+    # /later lists everything with saved_for_later=True that's still PENDING.
+    saved_for_later: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     inventory_status: Mapped[InventoryStatus] = mapped_column(
         Enum(InventoryStatus), default=InventoryStatus.UNDER_REVIEW
     )

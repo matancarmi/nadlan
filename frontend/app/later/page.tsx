@@ -36,6 +36,18 @@ export default function SaveForLater() {
     }
   }
 
+  async function removeBookmark(id: number) {
+    setBusyId(id);
+    try {
+      await api.saveForLater(id, false);
+      setItems((prev) => (prev ? prev.filter((p) => p.id !== id) : prev));
+    } catch (e: any) {
+      setError(e.message || "שגיאה בהסרה");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (error) return <div className="mt-10 text-center text-red-600">{error}</div>;
   if (items === null) return <div className="mt-10 text-center text-gray-400">טוען...</div>;
 
@@ -43,7 +55,10 @@ export default function SaveForLater() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold">🔖 לשמור להמשך</h1>
-        <p className="mt-1 text-sm text-gray-500">נכסים שסימנתם לחזור אליהם. אפשר לדרג אותם עכשיו ❤️ / ❌.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          נכסים שסימנתם לחזור אליהם - עדיין מופיעים גם בעמוד הגילוי. אפשר לדרג אותם עכשיו ❤️ / ❌,
+          או להסיר את הסימון ולהשאיר אותם רק בתור הרגיל.
+        </p>
       </div>
 
       {items.length === 0 && (
@@ -52,20 +67,29 @@ export default function SaveForLater() {
 
       {items.map((p) => (
         <PropertyCard key={p.id} property={p} financeSettings={financeSettings}>
-          <div className="flex gap-2 border-t border-gray-100 px-4 py-3">
+          <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3">
+            <div className="flex gap-2">
+              <button
+                disabled={busyId === p.id}
+                onClick={() => act(p.id, "passed")}
+                className="flex-1 rounded-full border-2 border-gray-300 py-2 text-sm font-semibold text-gray-500 active:scale-95"
+              >
+                ❌ העברה
+              </button>
+              <button
+                disabled={busyId === p.id}
+                onClick={() => act(p.id, "liked")}
+                className="flex-1 rounded-full bg-brand-600 py-2 text-sm font-semibold text-white active:scale-95"
+              >
+                ❤️ שמירה
+              </button>
+            </div>
             <button
               disabled={busyId === p.id}
-              onClick={() => act(p.id, "passed")}
-              className="flex-1 rounded-full border-2 border-gray-300 py-2 text-sm font-semibold text-gray-500 active:scale-95"
+              onClick={() => removeBookmark(p.id)}
+              className="text-xs text-gray-400 underline"
             >
-              ❌ העברה
-            </button>
-            <button
-              disabled={busyId === p.id}
-              onClick={() => act(p.id, "liked")}
-              className="flex-1 rounded-full bg-brand-600 py-2 text-sm font-semibold text-white active:scale-95"
-            >
-              ❤️ שמירה
+              הסרה מרשימת ההמשך
             </button>
           </div>
         </PropertyCard>

@@ -62,7 +62,8 @@ class MockAdapter(SourceAdapter):
                         street=f"רחוב לדוגמה {i + 1}",
                         source_url=_SOURCE_LINKS.get(self.name, "https://www.gov.il/"),
                         contact_info="050-0000000 (מוצג לדוגמה)",
-                        image_url=f"https://picsum.photos/seed/{self.name}-{city}-{i}/640/420",
+                        # No placeholder image - only a genuine scraped image
+                        # counts, and these are mock/placeholder listings.
                         planning_status=planning_label if asset_type in ("new_project", "pinui_binui") else None,
                         planning_status_key=planning_key if asset_type in ("new_project", "pinui_binui") else None,
                         raw={"mock": True},

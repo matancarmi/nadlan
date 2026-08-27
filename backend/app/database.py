@@ -43,6 +43,7 @@ def _run_lightweight_migrations():
             ("image_url", "VARCHAR(500)"),
             ("estimated_monthly_rent", "FLOAT"),
             ("gross_rental_yield_pct", "FLOAT"),
+            ("saved_for_later", "BOOLEAN DEFAULT FALSE"),
         ],
         "search_settings": [
             ("premium_cities", "JSON"),
@@ -56,6 +57,35 @@ def _run_lightweight_migrations():
             if column_name not in existing_columns:
                 with engine.begin() as conn:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
+
+    if "properties" in existing_tables:
+        # Runs every startup, but only ever touches rows where decision='MAYBE'
+        # (none, after the first run) - safe and cheap to leave unconditional.
+        _migrate_maybe_decisions_to_saved_for_later()
+
+
+def _migrate_maybe_decisions_to_saved_for_later():
+    """"Save for later" used to be its own `decision` value (MAYBE), which
+    removed a property from the discovery feed - the opposite of what's
+    wanted (it should stay in the feed until finally liked/passed). Any
+    already-stored MAYBE rows are converted once to the new representation:
+    decision back to PENDING (visible in the feed again) with
+    saved_for_later=True (still listed on /later). Idempotent - a no-op once
+    no rows have decision='MAYBE' any more. Stored as 'MAYBE' (the enum
+    member's NAME), not 'maybe' - verified directly against both SQLite and
+    Postgres before relying on it here."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("UPDATE properties SET decision = 'PENDING', saved_for_later = TRUE WHERE decision = 'MAYBE'")
+        )
+        if result.rowcount:
+            import logging
+
+            logging.getLogger(__name__).info(
+                "Migrated %d propert(y/ies) from decision=MAYBE to saved_for_later=True", result.rowcount
+            )
 
 
 def _sync_postgres_enum_types():

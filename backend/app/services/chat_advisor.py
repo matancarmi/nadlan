@@ -5,6 +5,7 @@ properties has the best cash flow?" or "is this Bat Yam deal priced well?".
 """
 import logging
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
@@ -16,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 def _build_context(db: Session) -> tuple[list[Property], list[dict]]:
-    """Saved (liked + maybe) properties, enriched with finance metrics -
-    the advisor's whole knowledge base is "your shortlist", not the full
-    firehose of pending/passed listings."""
+    """Saved (liked) + bookmarked-for-later properties, enriched with finance
+    metrics - the advisor's whole knowledge base is "your shortlist", not the
+    full firehose of pending/passed listings."""
     properties = (
         db.query(Property)
-        .filter(Property.decision.in_([DecisionStatus.LIKED, DecisionStatus.MAYBE]))
+        .filter(or_(Property.decision == DecisionStatus.LIKED, Property.saved_for_later.is_(True)))
         .order_by(Property.updated_at.desc())
         .all()
     )
@@ -38,6 +39,7 @@ def _build_context(db: Session) -> tuple[list[Property], list[dict]]:
                 "city": p.city,
                 "street": p.street,
                 "decision": p.decision.value,
+                "saved_for_later": p.saved_for_later,
                 "inventory_status": p.inventory_status.value,
                 "asking_price": p.asking_price,
                 "price_per_sqm": p.price_per_sqm,

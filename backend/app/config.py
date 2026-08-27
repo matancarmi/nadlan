@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     # so the rest of the pipeline (AI analysis, alerts, UI) keeps working.
     ingestion_request_timeout_seconds: int = 20
 
+    # --- Yad2 adapter resilience ---
+    # Retries with backoff for transient failures (timeouts, 5xx). Does NOT
+    # retry through PerimeterX bot-protection blocks - those are a deliberate
+    # wall, not a transient error, and are logged distinctly instead.
+    yad2_max_retries: int = 3
+    yad2_retry_backoff_seconds: float = 1.5
+    # Optional: route Yad2 requests through your own proxy or a commercial
+    # scraping API (e.g. https://user:pass@proxy.scraperapi.com:8001) if you
+    # have one. This is a pass-through hook only - nothing here manages,
+    # rotates, or picks proxies on your behalf.
+    yad2_proxy_url: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

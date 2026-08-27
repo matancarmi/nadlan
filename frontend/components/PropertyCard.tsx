@@ -24,7 +24,8 @@ export default function PropertyCard({
   children?: React.ReactNode;
 }) {
   const p = property;
-  const fallbackImage = `https://picsum.photos/seed/${p.source}-${p.id}/640/420`;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = !!p.image_url && !imageFailed;
 
   const [calcOpen, setCalcOpen] = useState(false);
   const [equity, setEquity] = useState<number>(financeSettings?.equity_nis ?? 500000);
@@ -40,17 +41,26 @@ export default function PropertyCard({
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="aspect-[16/10] w-full overflow-hidden bg-gray-100">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={p.image_url || fallbackImage}
-          alt={p.title}
-          className="h-full w-full object-cover"
-          loading="lazy"
-          onError={(e) => {
-            const img = e.currentTarget;
-            if (img.src !== fallbackImage) img.src = fallbackImage;
-          }}
-        />
+        {showImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.image_url!}
+            alt={p.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <a
+            href={p.source_url || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gray-200 text-center text-gray-500"
+          >
+            <span className="text-2xl">🖼️</span>
+            <span className="px-4 text-sm font-medium">בשביל תמונה אנא כנס לקישור</span>
+          </a>
+        )}
       </div>
       <div className="flex items-start justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
         <div>
@@ -63,11 +73,18 @@ export default function PropertyCard({
             {p.street ? ` · ${p.street}` : ""}
           </div>
         </div>
-        {p.is_high_value_deal && (
-          <span className="whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-            🔥 עסקה חמה
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {p.is_high_value_deal && (
+            <span className="whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+              🔥 עסקה חמה
+            </span>
+          )}
+          {p.saved_for_later && (
+            <span className="whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+              🔖 שמור להמשך
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-4 py-3 text-sm">
