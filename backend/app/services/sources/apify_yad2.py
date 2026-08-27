@@ -1,21 +1,33 @@
-"""Yad2 listings via Apify (https://apify.com) - a paid third-party scraping
-platform that runs its own scraping infrastructure and handles Yad2's
-bot-protection question on its own terms, unlike the direct-request attempt
-in yad2.py. Used automatically instead of the direct attempt whenever
+"""Yad2 for-sale listings via Apify (https://apify.com) - a paid third-party
+scraping platform that runs its own scraping infrastructure and handles
+Yad2's bot-protection question on its own terms, unlike the direct-request
+attempt in yad2.py. Used automatically instead of the direct attempt whenever
 APIFY_API_TOKEN is configured (see config.py); falls back to the exact same
 mock data as the direct adapter if the run fails, times out, or an actor
 isn't configured, so the pipeline never breaks.
 
-Important - there is no single "official" Yad2 actor on Apify, and this
-integration's `actor.call()` / `dataset.iterate_items()` usage was verified
-against the real apify-client 3.1.3 API (installed and introspected
-directly - its method signatures changed across major versions, so this
-matters), but the actual actor run could NOT be tested end-to-end: this
-project's dev sandbox blocks outbound calls to api.apify.com the same way it
-blocks yad2.co.il. You must pick a working actor yourself (see README) and
-should verify the mapping in `_parse_item` against a sample of its real
-output - the multi-key-name lookups in `_first()` are a best-effort guess at
-common field names, not a verified schema.
+Targets `swerve/yad2-scraper` by default - verified against a real live run
+(see below), not a guess. Its `dealType` input is required and explicit
+(`rent` / `buy` / `commercial`), which matters: an earlier actor tried here
+(`amit123/YadScraper`) turned out to *only* scrape rental listings no matter
+what URL/category was passed in (giveaway fields like `payments_in_year`,
+`furnished`, `entrance_date`, and rent-magnitude prices like ₪4,900), which
+is a fundamental mismatch for an app whose purpose is finding properties to
+buy. swerve/yad2-scraper's `dealType: "buy"` avoids that ambiguity outright,
+and its `city` input accepts the same Hebrew city names already used
+throughout this app (config.target_cities, resolve_target_cities) - so no
+city-id lookup table is needed either, unlike the old `_CITY_IDS` guesses.
+
+Verified real output schema (via a live run against Gedera/Bat Yam/Hadera,
+inspected directly through Railway rather than assumed): `url` (a genuine
+per-listing https://www.yad2.co.il/item/<id> link), `streetName`,
+`neighbourhood`, `address`, `city`/`cityHebrew`, `price` (a plain number,
+already in ILS for dealType=buy), `rooms`, `areaSqm`, `floor`, `images`
+(list), `coverImage`, `listingDescription`, `contactName`/`contactPhone`,
+`propertyType`, `listingId`. `_parse_item` maps these directly; the
+multi-key `_first()` fallback lookups are kept only as a defensive net in
+case the actor's schema drifts or `APIFY_ACTOR_INPUT_JSON`/a different actor
+is swapped in later.
 """
 import json
 import logging
@@ -23,7 +35,7 @@ from datetime import timedelta
 
 from ...config import get_settings
 from .base import RawListing, SourceAdapter
-from .yad2 import _CITY_IDS, Yad2Adapter
+from .yad2 import Yad2Adapter
 
 logger = logging.getLogger(__name__)
 
@@ -89,51 +101,62 @@ class ApifyYad2Adapter(SourceAdapter):
         return listings
 
     def _build_run_input(self, cities: list[str], max_price: float, settings) -> dict:
-        """Default input: a Yad2 search-results URL per target city, most
-        generic Yad2 actors accept a list of start URLs to crawl. Override
-        entirely via APIFY_ACTOR_INPUT_JSON if your actor expects something
-        else (e.g. a structured `search` object instead of URLs)."""
+        """Default input matches swerve/yad2-scraper's schema: Hebrew/English
+        city names (comma-separated) plus an explicit dealType=buy so it
+        never silently returns rentals. Override entirely via
+        APIFY_ACTOR_INPUT_JSON for a different actor's input shape."""
         if settings.apify_actor_input_json:
             try:
                 return json.loads(settings.apify_actor_input_json)
             except json.JSONDecodeError:
                 logger.warning("APIFY_ACTOR_INPUT_JSON is not valid JSON - using the default input instead")
 
-        start_urls = []
-        for city in cities:
-            city_id = _CITY_IDS.get(city)
-            city_param = f"city={city_id}" if city_id else f"city={city}"
-            start_urls.append({"url": f"https://www.yad2.co.il/realestate/forsale?{city_param}&maxPrice={int(max_price)}"})
-        return {"startUrls": start_urls, "maxItems": settings.apify_max_items}
+        return {
+            "city": ",".join(cities),
+            "dealType": "buy",
+            "maxPrice": int(max_price),
+            "maxItems": settings.apify_max_items,
+        }
 
     def _parse_item(self, item: dict, cities: list[str]) -> RawListing | None:
         try:
+            # dealType=buy items may still include commercial/rental rows if
+            # a differently-configured actor mixes categories (e.g. the
+            # commercial section) - skip anything that isn't actually a sale.
+            deal_type = _first(item, ["dealType", "deal_type"])
+            if deal_type and deal_type not in ("buy", "sale", "forsale", "for_sale"):
+                return None
+
             price = _first(item, ["price", "Price", "askingPrice", "priceNis"])
             if price is None:
                 return None
             price = float(str(price).replace(",", "").replace("₪", "").strip())
 
-            title = _first(item, ["title", "Title", "adTitle"]) or "נכס למכירה"
-            city = _first(item, ["city", "City", "address_city", "cityName"])
+            city = _first(item, ["cityHebrew", "city_hebrew", "city", "City"])
+            street = _first(item, ["streetName", "street_name", "street", "Street", "address"])
+            neighborhood = _first(item, ["neighbourhood", "neighborhood", "Neighbourhood"])
             if not city:
-                # Best effort: the actor's own city field is missing/named
-                # differently - match against whichever target city name
-                # appears in the title/address text instead of guessing wrong.
-                text = f"{title} {_first(item, ['address', 'Address']) or ''}"
+                text = f"{street or ''} {neighborhood or ''}"
                 city = next((c for c in cities if c in text), None)
             if not city:
                 return None  # can't file this under any city - skip rather than guess
 
             rooms = _first(item, ["rooms", "Rooms", "roomsCount", "numOfRooms"])
-            size = _first(item, ["squareMeters", "square", "size", "area", "sqm"])
+            size = _first(item, ["areaSqm", "area_sqm", "squareMeters", "square", "size", "area", "sqm"])
             images = _first(item, ["images", "Images", "photos", "imageUrls"])
-            image_url = images[0] if isinstance(images, list) and images else _first(item, ["image", "coverImage"])
-            url = _first(item, ["url", "Url", "link", "adUrl"])
-            contact = _first(item, ["contactName", "phone", "contact", "phoneNumber"])
-            description = _first(item, ["description", "Description"]) or ""
+            image_url = images[0] if isinstance(images, list) and images else _first(item, ["coverImage", "image"])
+            url = _first(item, ["url", "Url", "link", "adUrl", "item_url"])
+            contact_name = _first(item, ["contactName", "contact_name"])
+            contact_phone = _first(item, ["contactPhone", "contact_phone", "phone", "phoneNumber"])
+            contact = ", ".join(str(v) for v in (contact_name, contact_phone) if v) or None
+            description = _first(item, ["listingDescription", "description", "Description"]) or ""
+            property_type = _first(item, ["propertyType", "property_type"]) or ""
 
-            text_blob = f"{title} {description}"
             rooms_f = float(rooms) if rooms else None
+            title_bits = [b for b in (property_type, f"{rooms_f:g} חדרים" if rooms_f else None, street, city) if b]
+            title = ", ".join(title_bits) or "נכס למכירה"
+
+            text_blob = f"{title} {description} {property_type}"
             asset_type = "rooms_4" if rooms_f and 3.5 <= rooms_f <= 4.5 else "other"
             for keyword, mapped_type in _ASSET_TYPE_KEYWORDS:
                 if keyword in text_blob:
@@ -142,16 +165,17 @@ class ApifyYad2Adapter(SourceAdapter):
 
             return RawListing(
                 source=self.name,
-                external_id=str(_first(item, ["id", "Id", "adNumber", "itemId"]) or url or f"{city}-{title}-{price}"),
+                external_id=str(_first(item, ["listingId", "listing_id", "id", "Id", "adNumber", "itemId"]) or url or f"{city}-{title}-{price}"),
                 title=title,
                 city=city,
                 asset_type=asset_type,
                 asking_price=price,
                 size_sqm=float(size) if size else None,
                 rooms=rooms_f,
-                street=_first(item, ["street", "Street", "address_street"]),
-                source_url=url or "https://www.yad2.co.il/realestate/forsale",
-                contact_info=str(contact) if contact else None,
+                neighborhood=neighborhood,
+                street=street,
+                source_url=url,  # only a genuine per-listing link - never a generic search-page fallback
+                contact_info=contact,
                 image_url=image_url,  # only set if the actor genuinely returned one - no placeholder
                 raw=item,
             )
