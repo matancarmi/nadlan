@@ -21,6 +21,7 @@ class DecisionStatus(str, enum.Enum):
     PENDING = "pending"   # not yet swiped -> shows in discovery feed
     LIKED = "liked"       # saved -> shows in Saved Inventory
     PASSED = "passed"     # discarded -> hidden archive, never shown again
+    MAYBE = "maybe"       # save for later -> leaves the feed, revisit on /later to decide
 
 
 class InventoryStatus(str, enum.Enum):

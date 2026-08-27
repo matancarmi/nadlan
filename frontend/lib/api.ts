@@ -33,9 +33,10 @@ export const api = {
   login: (password: string) => request<{ ok: boolean }>("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   getFeed: (limit = 20) => request<import("./types").Property[]>(`/api/properties/feed?limit=${limit}`),
-  decide: (id: number, decision: "liked" | "passed") =>
+  decide: (id: number, decision: "liked" | "passed" | "maybe") =>
     request(`/api/properties/${id}/decision`, { method: "POST", body: JSON.stringify({ decision }) }),
   getSaved: () => request<import("./types").Property[]>("/api/properties/saved"),
+  getLater: () => request<import("./types").Property[]>("/api/properties/later"),
   updateInventory: (id: number, payload: { inventory_status?: string; notes?: string }) =>
     request(`/api/properties/${id}/inventory`, { method: "PATCH", body: JSON.stringify(payload) }),
   getGuide: () => request<import("./types").PlanningStage[]>("/api/guide/stages"),

@@ -23,7 +23,7 @@ export default function DiscoveryFeed() {
     load();
   }, []);
 
-  async function act(decision: "liked" | "passed") {
+  async function act(decision: "liked" | "passed" | "maybe") {
     if (!queue || queue.length === 0 || busy) return;
     setBusy(true);
     const current = queue[0];
@@ -67,18 +67,25 @@ export default function DiscoveryFeed() {
     <div className="flex flex-col gap-4">
       <div className="text-center text-xs text-gray-400">{queue.length} נכסים בתור</div>
       <PropertyCard property={current} />
-      <div className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-2xl gap-3 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-2xl gap-2 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
         <button
           disabled={busy}
           onClick={() => act("passed")}
-          className="flex-1 rounded-full border-2 border-gray-300 py-3 text-lg font-semibold text-gray-500 active:scale-95"
+          className="flex-1 rounded-full border-2 border-gray-300 py-3 text-base font-semibold text-gray-500 active:scale-95"
         >
           ❌ העברה
         </button>
         <button
           disabled={busy}
+          onClick={() => act("maybe")}
+          className="flex-1 rounded-full border-2 border-amber-300 py-3 text-base font-semibold text-amber-600 active:scale-95"
+        >
+          🔖 להמשך
+        </button>
+        <button
+          disabled={busy}
           onClick={() => act("liked")}
-          className="flex-1 rounded-full bg-brand-600 py-3 text-lg font-semibold text-white active:scale-95"
+          className="flex-1 rounded-full bg-brand-600 py-3 text-base font-semibold text-white active:scale-95"
         >
           ❤️ שמירה
         </button>

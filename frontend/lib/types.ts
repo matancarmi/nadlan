@@ -1,5 +1,5 @@
 export type AssetType = "rooms_4" | "garden_apartment" | "new_project" | "pinui_binui" | "other";
-export type DecisionStatus = "pending" | "liked" | "passed";
+export type DecisionStatus = "pending" | "liked" | "passed" | "maybe";
 export type InventoryStatus = "under_review" | "contacted_agent" | "archived";
 
 export interface Property {

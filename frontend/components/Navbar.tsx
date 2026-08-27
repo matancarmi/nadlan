@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 const links = [
   { href: "/", label: "🏠 גילוי" },
   { href: "/saved", label: "❤️ שמורים" },
+  { href: "/later", label: "🔖 להמשך" },
   { href: "/guide", label: "📖 מדריך תכנוני" },
   { href: "/areas", label: "📍 אזורי חיפוש" },
 ];

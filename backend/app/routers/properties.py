@@ -25,7 +25,7 @@ def get_feed(limit: int = 20, db: Session = Depends(get_db)):
 
 @router.post("/{property_id}/decision", response_model=PropertyOut)
 def set_decision(property_id: int, payload: DecisionUpdate, db: Session = Depends(get_db)):
-    """Swipe action: like (save) or pass (discard/hide forever)."""
+    """Swipe action: like (save), pass (discard/hide forever), or maybe (save for later)."""
     prop = db.get(Property, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
@@ -63,6 +63,18 @@ def update_inventory(property_id: int, payload: InventoryUpdate, db: Session = D
     db.commit()
     db.refresh(prop)
     return prop
+
+
+@router.get("/later", response_model=list[PropertyOut])
+def get_later(db: Session = Depends(get_db)):
+    """Properties marked "save for later" - not in the discovery feed, not yet
+    fully decided; revisit here and finish deciding like/pass."""
+    return (
+        db.query(Property)
+        .filter(Property.decision == DecisionStatus.MAYBE)
+        .order_by(Property.decided_at.desc())
+        .all()
+    )
 
 
 @router.get("/passed", response_model=list[PropertyOut])
