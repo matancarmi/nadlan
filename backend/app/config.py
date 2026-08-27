@@ -66,6 +66,24 @@ class Settings(BaseSettings):
     # rotates, or picks proxies on your behalf.
     yad2_proxy_url: str | None = None
 
+    # --- Apify (real Yad2 listings via a third-party scraping platform) ---
+    # When APIFY_API_TOKEN is set, the daily ingestion and POST /api/ingest/run
+    # fetch Yad2 through Apify (which runs its own compliant scraping
+    # infrastructure) instead of the direct-request attempt in yad2.py. Falls
+    # back to the same mock data as the direct adapter if the Apify run fails
+    # or an actor isn't configured.
+    apify_api_token: str | None = None
+    # Apify actor id, "username/actor-name" (see README for how to pick one -
+    # there's no single official Yad2 actor, this must be chosen and verified
+    # against your own Apify account).
+    apify_actor_id: str | None = None
+    # Optional raw JSON overriding the actor input this integration builds by
+    # default (a list of Yad2 search-result startUrls + maxItems) - set this
+    # if your chosen actor expects a different input shape.
+    apify_actor_input_json: str | None = None
+    apify_max_items: int = 200
+    apify_run_timeout_seconds: int = 180
+
 
 @lru_cache
 def get_settings() -> Settings:

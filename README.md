@@ -24,10 +24,54 @@ realistic mock data.
 
 | Source | Status | Notes |
 |---|---|---|
-| Yad2 | **Real attempt + mock fallback** | `services/sources/yad2.py` calls Yad2's public (unofficial, undocumented) search endpoint with browser-like headers. Any failure (blocking, schema drift, wrong city IDs) falls back to mock listings for that city automatically. |
+| Yad2 | **Real via Apify (optional) → real direct attempt → mock fallback** | If `APIFY_API_TOKEN` + `APIFY_ACTOR_ID` are set, `services/sources/apify_yad2.py` fetches real listings through Apify (see "Apify setup" below). Otherwise `services/sources/yad2.py` calls Yad2's public (unofficial, undocumented) search endpoint directly with browser-like headers - blocked by PerimeterX in practice (see below). Either way, any failure falls back to mock listings automatically. |
 | Madlan / WinWin / Facebook groups | Mock (realistic, same schema) | `services/sources/mock_adapter.py`. Swap in a real adapter later by implementing `SourceAdapter.fetch_listings` the same way `Yad2Adapter` does. |
 | Israel Tax Authority transactions (CMA) | **Real attempt + mock fallback** | `services/gov_data/tax_authority.py` calls the public `data.gov.il` CKAN `datastore_search` API. Falls back to deterministic per-city mock comparables on failure. |
 | Pinui Binui / presale planning status | Mock (realistic) | Generated alongside new_project/pinui_binui mock listings; wire up a real `gov_data` adapter the same way later. |
+
+### Apify setup (real Yad2 listings)
+
+The direct Yad2 attempt above is reliably blocked by PerimeterX (see below), so the
+realistic path to real listings is [Apify](https://apify.com) - a paid scraping platform
+that runs the actual scraping on its own infrastructure and handles that compliance
+question itself, rather than this app attempting to evade Yad2's anti-bot defenses (which
+it deliberately doesn't do).
+
+**There is no single "official" Yad2 actor** - you pick one from the
+[Apify Store](https://apify.com/store) (search "yad2") and verify it works with your own
+account before relying on it. To wire one up:
+
+1. Create an Apify account and get an API token from your
+   [Apify Console → Settings → Integrations](https://console.apify.com/account/integrations).
+2. Pick a Yad2 scraper actor from the Apify Store, note its id (`username/actor-name`,
+   e.g. `someone/yad2-scraper` - shown on the actor's page).
+3. On Railway, set on the **backend** service: `APIFY_API_TOKEN` (your token) and
+   `APIFY_ACTOR_ID` (the actor id from step 2).
+4. Trigger `POST /api/ingest/run` and check the logs for `Apify Yad2 run returned N real
+   listings` vs. a fallback warning. If it falls back, the actor's input or output shape
+   likely differs from what this integration assumes by default:
+   - **Input**: by default, this sends `{"startUrls": [...Yad2 search-result URLs per
+     target city...], "maxItems": ...}` - the most common shape generic Yad2 actors accept.
+     If your actor expects something else (e.g. a structured `search` object), set
+     `APIFY_ACTOR_INPUT_JSON` to override the input entirely.
+   - **Output mapping**: `_parse_item()` in `apify_yad2.py` tries several common field-name
+     variants (`price`/`Price`/`askingPrice`, `rooms`/`Rooms`/`roomsCount`, etc.) - this is
+     a best-effort guess, not a verified schema for any specific actor. Pull a sample run's
+     dataset (Apify Console → your run → Dataset → Export) and adjust the key lists in
+     `_first()` calls to match what your actor actually returns.
+5. Growth-area cities (marked ⭐ on `/areas`) are always included in the Apify search
+   alongside your main search area, even if outside it - so e.g. flagging Bat Yam as a
+   growth area gets it searched regardless of your selected corridor.
+
+**Verified vs. not**: this sandbox blocks outbound calls to `api.apify.com` the same way
+it blocks `yad2.co.il`, so the actual scraping run could not be tested end-to-end. What
+*was* verified: the `apify-client` API calls used here (`actor().call()`,
+`dataset().iterate_items()`) match the real installed client's method signatures exactly
+(introspected directly against `apify-client==3.1.3`), the item-parsing logic was
+unit-tested against several synthetic realistic dataset shapes, and a real (failing, since
+the sandbox blocks it) network call was made to confirm the whole path falls back to mock
+data cleanly rather than crashing. The actor choice, its real input schema, and its real
+output field names are yours to verify against a live run.
 
 **Important — verify after deploying:** this project was built in a sandboxed dev
 environment whose network policy blocks outbound calls to `yad2.co.il` and
@@ -93,8 +137,10 @@ Runs on `http://localhost:3000`.
    `APP_PASSWORD`, `SESSION_SECRET`, `FRONTEND_ORIGINS` (your deployed frontend URL),
    `ANTHROPIC_API_KEY` (for AI analysis), `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`/
    `ALERT_EMAIL_TO` (for deal-alert emails — e.g. a Gmail address + an
-   [App Password](https://myaccount.google.com/apppasswords)). Leave `DATABASE_URL` as
-   Railway's provided Postgres URL and `SESSION_COOKIE_SECURE` unset (defaults to `true`).
+   [App Password](https://myaccount.google.com/apppasswords)), and optionally
+   `APIFY_API_TOKEN` + `APIFY_ACTOR_ID` (for real Yad2 listings — see "Apify setup"
+   above). Leave `DATABASE_URL` as Railway's provided Postgres URL and
+   `SESSION_COOKIE_SECURE` unset (defaults to `true`).
 3. Deploy `frontend/` as a second Railway service (Nixpacks auto-detects Next.js). Set
    `BACKEND_URL` (server-side only, no `NEXT_PUBLIC_` prefix) to the backend service's
    URL — `next.config.js` proxies all `/api/*` browser requests to it. This keeps every

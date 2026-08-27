@@ -9,7 +9,9 @@ from ..config import get_settings
 from ..models import AssetType, DecisionStatus, Property
 from .ai_analysis import enrich_with_cma, enrich_with_rental_yield, generate_ai_summary
 from .email_alerts import send_high_value_deal_alert
+from .geo import get_or_create_settings as get_or_create_area_settings
 from .geo import resolve_target_cities
+from .sources.apify_yad2 import ApifyYad2Adapter
 from .sources.base import RawListing, SourceAdapter
 from .sources.mock_adapter import MockAdapter
 from .sources.yad2 import Yad2Adapter
@@ -18,8 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_all_adapters() -> list[SourceAdapter]:
+    settings = get_settings()
+    yad2_adapter = ApifyYad2Adapter() if settings.apify_api_token else Yad2Adapter()
     return [
-        Yad2Adapter(),
+        yad2_adapter,
         MockAdapter(name="madlan", seed=1),
         MockAdapter(name="winwin", seed=2),
         MockAdapter(name="facebook_groups", seed=3),
@@ -27,10 +31,20 @@ def get_all_adapters() -> list[SourceAdapter]:
     ]
 
 
+def _resolve_search_cities(db: Session) -> list[str]:
+    """The configured search area, plus any "growth area" cities the user
+    flagged (e.g. Bat Yam) even if they're outside the main search area -
+    those should always be searched so they can actually turn up and get
+    their star badge, not just be flaggable in theory."""
+    target_cities = resolve_target_cities(db)
+    premium_cities = get_or_create_area_settings(db).premium_cities or []
+    return list(dict.fromkeys([*target_cities, *premium_cities]))  # union, order-stable, no dupes
+
+
 def run_daily_ingestion(db: Session) -> dict:
     settings = get_settings()
     adapters = get_all_adapters()
-    target_cities = resolve_target_cities(db)
+    target_cities = _resolve_search_cities(db)
 
     fetched, created, updated, errors = 0, 0, 0, []
     new_high_value_deals: list[Property] = []
