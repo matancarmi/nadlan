@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..schemas import AvailableCitiesOut, SearchSettingsOut, SearchSettingsUpdate
+from ..schemas import AvailableCitiesOut, PremiumCitiesUpdate, SearchSettingsOut, SearchSettingsUpdate
 from ..security import require_session
 from ..services.geo import CITY_COORDS, geocode_address, get_or_create_settings
 
@@ -41,6 +41,17 @@ def update_areas(payload: SearchSettingsUpdate, db: Session = Depends(get_db)):
         row.center_lat, row.center_lon = center if center else (None, None)
         row.resolved_cities = None
 
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.put("/areas/premium-cities", response_model=SearchSettingsOut)
+def update_premium_cities(payload: PremiumCitiesUpdate, db: Session = Depends(get_db)):
+    """Cities flagged as high-potential "growth areas" - shown with a ⭐
+    badge on property cards. Independent of search mode/city list."""
+    row = get_or_create_settings(db)
+    row.premium_cities = payload.premium_cities
     db.commit()
     db.refresh(row)
     return row

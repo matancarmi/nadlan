@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { INVENTORY_STATUS_LABELS, InventoryStatus, Property } from "@/lib/types";
 import PropertyCard from "@/components/PropertyCard";
+import { useFinanceSettings } from "@/lib/useFinanceSettings";
 
 const STATUSES: InventoryStatus[] = ["under_review", "contacted_agent", "archived"];
 
@@ -11,6 +12,7 @@ export default function SavedInventory() {
   const [items, setItems] = useState<Property[] | null>(null);
   const [filter, setFilter] = useState<InventoryStatus | "all">("all");
   const [error, setError] = useState<string | null>(null);
+  const financeSettings = useFinanceSettings();
 
   async function load() {
     try {
@@ -61,7 +63,7 @@ export default function SavedInventory() {
       {filtered.length === 0 && <div className="mt-10 text-center text-gray-400">אין נכסים תואמים</div>}
 
       {filtered.map((p) => (
-        <PropertyCard key={p.id} property={p}>
+        <PropertyCard key={p.id} property={p} financeSettings={financeSettings}>
           <div className="border-t border-gray-100 px-4 py-3">
             <label className="mb-1 block text-xs text-gray-400">סטטוס</label>
             <select

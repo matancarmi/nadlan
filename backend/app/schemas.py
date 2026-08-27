@@ -39,6 +39,17 @@ class PropertyOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # --- Rental yield (stored, computed at ingestion) ---
+    estimated_monthly_rent: float | None = None
+    gross_rental_yield_pct: float | None = None
+
+    # --- Dynamic fields, computed at read-time from current Finance/Area
+    # settings rather than stored - see services/finance.py ---
+    estimated_monthly_mortgage_payment: float | None = None
+    monthly_cash_flow: float | None = None
+    loan_amount_used: float | None = None
+    is_premium_area: bool = False
+
 
 class DecisionUpdate(BaseModel):
     decision: DecisionStatus
@@ -83,6 +94,7 @@ class SearchSettingsOut(BaseModel):
     center_lat: float | None
     center_lon: float | None
     resolved_cities: list[str] | None
+    premium_cities: list[str] | None
 
 
 class SearchSettingsUpdate(BaseModel):
@@ -92,5 +104,42 @@ class SearchSettingsUpdate(BaseModel):
     radius_km: float | None = None
 
 
+class PremiumCitiesUpdate(BaseModel):
+    premium_cities: list[str]
+
+
 class AvailableCitiesOut(BaseModel):
     cities: list[str]
+
+
+class MortgageTranche(BaseModel):
+    name: str
+    share_pct: float
+    annual_rate_pct: float
+
+
+class FinanceSettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    equity_nis: float
+    loan_term_years: int
+    mix: list[MortgageTranche]
+
+
+class FinanceSettingsUpdate(BaseModel):
+    equity_nis: float
+    loan_term_years: int
+    mix: list[MortgageTranche]
+
+
+class ChatMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    role: str
+    content: str
+    created_at: datetime
+
+
+class ChatRequest(BaseModel):
+    content: str

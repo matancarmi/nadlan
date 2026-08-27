@@ -39,7 +39,14 @@ def _run_lightweight_migrations():
     existing_tables = set(inspector.get_table_names())
 
     additions = {
-        "properties": [("image_url", "VARCHAR(500)")],
+        "properties": [
+            ("image_url", "VARCHAR(500)"),
+            ("estimated_monthly_rent", "FLOAT"),
+            ("gross_rental_yield_pct", "FLOAT"),
+        ],
+        "search_settings": [
+            ("premium_cities", "JSON"),
+        ],
     }
     for table, columns in additions.items():
         if table not in existing_tables:

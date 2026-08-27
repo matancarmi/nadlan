@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import AssetType, DecisionStatus, Property
-from .ai_analysis import enrich_with_cma, generate_ai_summary
+from .ai_analysis import enrich_with_cma, enrich_with_rental_yield, generate_ai_summary
 from .email_alerts import send_high_value_deal_alert
 from .geo import resolve_target_cities
 from .sources.base import RawListing, SourceAdapter
@@ -48,6 +48,7 @@ def run_daily_ingestion(db: Session) -> dict:
             try:
                 is_new, prop = _upsert_property(db, raw)
                 enrich_with_cma(prop)
+                enrich_with_rental_yield(prop)
                 generate_ai_summary(prop)
                 db.flush()
                 if is_new:

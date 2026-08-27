@@ -12,6 +12,9 @@ export default function AreasSettings() {
   const [radiusKm, setRadiusKm] = useState(20);
   const [resolvedCities, setResolvedCities] = useState<string[] | null>(null);
   const [geocodeFailed, setGeocodeFailed] = useState(false);
+  const [premiumCities, setPremiumCities] = useState<string[]>([]);
+  const [premiumSaving, setPremiumSaving] = useState(false);
+  const [premiumSaved, setPremiumSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -27,6 +30,7 @@ export default function AreasSettings() {
         setRadiusKm(settings.radius_km || 20);
         setResolvedCities(settings.resolved_cities);
         setGeocodeFailed(settings.mode === "radius" && !!settings.address && settings.center_lat == null);
+        setPremiumCities(settings.premium_cities || []);
       })
       .catch((e) => setError(e.message || "שגיאה בטעינת ההגדרות"))
       .finally(() => setLoading(false));
@@ -34,6 +38,23 @@ export default function AreasSettings() {
 
   function toggleCity(city: string) {
     setSelectedCities((prev) => (prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]));
+  }
+
+  function togglePremiumCity(city: string) {
+    setPremiumCities((prev) => (prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]));
+  }
+
+  async function savePremiumCities() {
+    setPremiumSaving(true);
+    setPremiumSaved(false);
+    try {
+      await api.updatePremiumCities(premiumCities);
+      setPremiumSaved(true);
+    } catch (e: any) {
+      setError(e.message || "שגיאה בשמירת אזורי הצמיחה");
+    } finally {
+      setPremiumSaving(false);
+    }
   }
 
   async function save() {
@@ -150,6 +171,40 @@ export default function AreasSettings() {
       >
         שמירה
       </button>
+
+      <div className="mt-2 border-t border-gray-200 pt-5">
+        <h2 className="mb-1 text-lg font-bold">⭐ אזורי צמיחה מועדפים</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          ערים שסימנתם כבעלות פוטנציאל השבחה גבוה (כמו בת ים) יסומנו ב-⭐ על כרטיסי הנכסים,
+          ללא קשר לאזור החיפוש הנוכחי.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {allCities.map((city) => (
+            <label
+              key={city}
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                premiumCities.includes(city) ? "border-amber-400 bg-amber-50" : "border-gray-200"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={premiumCities.includes(city)}
+                onChange={() => togglePremiumCity(city)}
+                className="accent-amber-500"
+              />
+              {city}
+            </label>
+          ))}
+        </div>
+        {premiumSaved && <div className="mt-3 text-center text-sm text-brand-700">נשמר ✓</div>}
+        <button
+          onClick={savePremiumCities}
+          disabled={premiumSaving}
+          className="mt-3 w-full rounded-full border-2 border-amber-400 py-3 text-lg font-semibold text-amber-700 disabled:opacity-50"
+        >
+          שמירת אזורי צמיחה
+        </button>
+      </div>
     </div>
   );
 }

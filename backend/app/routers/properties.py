@@ -7,20 +7,37 @@ from ..database import get_db
 from ..models import DecisionStatus, InventoryStatus, Property
 from ..schemas import DecisionUpdate, InventoryUpdate, PropertyOut
 from ..security import require_session
+from ..services.finance import attach_finance_metrics, get_or_create_finance_settings
+from ..services.geo import get_or_create_settings as get_or_create_area_settings
 
 router = APIRouter(prefix="/api/properties", tags=["properties"], dependencies=[Depends(require_session)])
+
+
+def _enrich(properties: list[Property], db: Session) -> list[Property]:
+    """Attach the dynamic, settings-dependent fields (mortgage payment, cash
+    flow, premium-area flag) as plain instance attributes - not mapped
+    columns, so this never touches the DB, just the response. Computed here
+    (rather than stored) so changing Finance/Area settings applies
+    immediately to every property on the very next fetch."""
+    finance_settings = get_or_create_finance_settings(db)
+    premium_cities = set(get_or_create_area_settings(db).premium_cities or [])
+    for prop in properties:
+        for key, value in attach_finance_metrics(prop, finance_settings, premium_cities).items():
+            setattr(prop, key, value)
+    return properties
 
 
 @router.get("/feed", response_model=list[PropertyOut])
 def get_feed(limit: int = 20, db: Session = Depends(get_db)):
     """Discovery feed: properties not yet swiped on, newest first."""
-    return (
+    properties = (
         db.query(Property)
         .filter(Property.decision == DecisionStatus.PENDING)
         .order_by(Property.is_high_value_deal.desc(), Property.created_at.desc())
         .limit(limit)
         .all()
     )
+    return _enrich(properties, db)
 
 
 @router.post("/{property_id}/decision", response_model=PropertyOut)
@@ -33,7 +50,7 @@ def set_decision(property_id: int, payload: DecisionUpdate, db: Session = Depend
     prop.decided_at = datetime.utcnow()
     db.commit()
     db.refresh(prop)
-    return prop
+    return _enrich([prop], db)[0]
 
 
 @router.get("/saved", response_model=list[PropertyOut])
@@ -48,7 +65,7 @@ def get_saved(
         query = query.filter(Property.inventory_status == status)
     elif not include_archived:
         query = query.filter(Property.inventory_status != InventoryStatus.ARCHIVED)
-    return query.order_by(Property.updated_at.desc()).all()
+    return _enrich(query.order_by(Property.updated_at.desc()).all(), db)
 
 
 @router.patch("/{property_id}/inventory", response_model=PropertyOut)
@@ -62,27 +79,29 @@ def update_inventory(property_id: int, payload: InventoryUpdate, db: Session = D
         prop.notes = payload.notes
     db.commit()
     db.refresh(prop)
-    return prop
+    return _enrich([prop], db)[0]
 
 
 @router.get("/later", response_model=list[PropertyOut])
 def get_later(db: Session = Depends(get_db)):
     """Properties marked "save for later" - not in the discovery feed, not yet
     fully decided; revisit here and finish deciding like/pass."""
-    return (
+    properties = (
         db.query(Property)
         .filter(Property.decision == DecisionStatus.MAYBE)
         .order_by(Property.decided_at.desc())
         .all()
     )
+    return _enrich(properties, db)
 
 
 @router.get("/passed", response_model=list[PropertyOut])
 def get_passed(db: Session = Depends(get_db)):
     """Hidden archive of discarded properties (kept so they never resurface, viewable on request)."""
-    return (
+    properties = (
         db.query(Property)
         .filter(Property.decision == DecisionStatus.PASSED)
         .order_by(Property.decided_at.desc())
         .all()
     )
+    return _enrich(properties, db)

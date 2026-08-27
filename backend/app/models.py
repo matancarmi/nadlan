@@ -65,6 +65,11 @@ class Property(Base):
     cma_sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cma_discount_pct: Mapped[float | None] = mapped_column(Float, nullable=True)  # positive = below market
     is_high_value_deal: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+    # --- Rental yield (market-level estimate, independent of any one buyer's
+    # financing choices, so computed once at ingestion and stored) ---
+    estimated_monthly_rent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gross_rental_yield_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_pros: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_cons: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -104,7 +109,36 @@ class SearchSettings(Base):
     center_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     center_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
     resolved_cities: Mapped[list | None] = mapped_column(JSON, nullable=True)  # cache of last radius match
+    # Cities flagged by the user as high-potential / rapidly developing ("growth
+    # areas") - shown with a ⭐ badge on property cards regardless of search mode.
+    premium_cities: Mapped[list | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FinanceSettings(Base):
+    """Singleton row (id=1) holding the user's default financing assumptions,
+    used to compute the estimated mortgage payment and cash flow shown on
+    every property card. `mix` is a standard Israeli "תמהיל" - a JSON list of
+    tranches, each {name, share_pct, annual_rate_pct}, whose share_pct sums
+    to 100."""
+    __tablename__ = "finance_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    equity_nis: Mapped[float] = mapped_column(Float, default=500_000)
+    loan_term_years: Mapped[int] = mapped_column(Integer, default=25)
+    mix: Mapped[list] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ChatMessage(Base):
+    """Log of the AI Investment Advisor chat (single conversation - this is a
+    single-user app). role is "user" or "assistant"."""
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    role: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class PlanningStage(Base):

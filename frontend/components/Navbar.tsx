@@ -10,6 +10,8 @@ const links = [
   { href: "/later", label: "🔖 להמשך" },
   { href: "/guide", label: "📖 מדריך תכנוני" },
   { href: "/areas", label: "📍 אזורי חיפוש" },
+  { href: "/finance", label: "💰 מימון" },
+  { href: "/chat", label: "🤖 יועץ AI" },
 ];
 
 export default function Navbar() {

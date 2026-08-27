@@ -33,6 +33,13 @@ export interface Property {
   notes: string | null;
   created_at: string;
   updated_at: string;
+
+  estimated_monthly_rent: number | null;
+  gross_rental_yield_pct: number | null;
+  estimated_monthly_mortgage_payment: number | null;
+  monthly_cash_flow: number | null;
+  loan_amount_used: number | null;
+  is_premium_area: boolean;
 }
 
 export interface PlanningStage {
@@ -68,4 +75,24 @@ export interface SearchAreaSettings {
   center_lat: number | null;
   center_lon: number | null;
   resolved_cities: string[] | null;
+  premium_cities: string[] | null;
+}
+
+export interface MortgageTranche {
+  name: string;
+  share_pct: number;
+  annual_rate_pct: number;
+}
+
+export interface FinanceSettings {
+  equity_nis: number;
+  loan_term_years: number;
+  mix: MortgageTranche[];
+}
+
+export interface ChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
 }

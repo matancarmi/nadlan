@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Property } from "@/lib/types";
 import PropertyCard from "@/components/PropertyCard";
+import { useFinanceSettings } from "@/lib/useFinanceSettings";
 
 export default function DiscoveryFeed() {
   const [queue, setQueue] = useState<Property[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const financeSettings = useFinanceSettings();
 
   async function load() {
     try {
@@ -66,7 +68,7 @@ export default function DiscoveryFeed() {
   return (
     <div className="flex flex-col gap-4">
       <div className="text-center text-xs text-gray-400">{queue.length} נכסים בתור</div>
-      <PropertyCard property={current} />
+      <PropertyCard property={current} financeSettings={financeSettings} />
       <div className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-2xl gap-2 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
         <button
           disabled={busy}

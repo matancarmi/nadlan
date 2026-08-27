@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Property } from "@/lib/types";
 import PropertyCard from "@/components/PropertyCard";
+import { useFinanceSettings } from "@/lib/useFinanceSettings";
 
 export default function SaveForLater() {
   const [items, setItems] = useState<Property[] | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const financeSettings = useFinanceSettings();
 
   async function load() {
     try {
@@ -49,7 +51,7 @@ export default function SaveForLater() {
       )}
 
       {items.map((p) => (
-        <PropertyCard key={p.id} property={p}>
+        <PropertyCard key={p.id} property={p} financeSettings={financeSettings}>
           <div className="flex gap-2 border-t border-gray-100 px-4 py-3">
             <button
               disabled={busyId === p.id}

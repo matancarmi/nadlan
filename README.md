@@ -91,12 +91,29 @@ Runs on `http://localhost:3000`.
 
 ## Product pages
 
-- `/` — **Discovery feed** ("Tinder mode"): swipe/tap ❤️ save or ❌ pass on one property
-  at a time. Passed properties are hidden forever; liked ones move to Saved Inventory.
+- `/` — **Discovery feed** ("Tinder mode"): swipe/tap ❤️ save, ❌ pass, or 🔖 save-for-later
+  on one property at a time. Passed properties are hidden forever; liked ones move to Saved
+  Inventory; "for later" ones move to `/later` to be finalized without cluttering the feed.
 - `/saved` — **Saved Inventory Hub**: all liked properties, filterable by status
   (Under Review / Contacted Agent / Archived), with private notes per property.
+- `/later` — properties saved for later; finish rating them ❤️/❌ whenever you're ready.
 - `/guide` — **Planning Stages Guide**: plain-Hebrew explanations of תב"ע, הפקדה,
   הוועדה המקומית/המחוזית, היתר בנייה, and the 4 stages of פינוי בינוי.
+- `/areas` — configure the search area (pick specific cities, or an address + radius in km,
+  resolved against a curated coordinate table) and mark "growth area" cities (⭐, e.g. בת ים)
+  that get a badge on every matching property card.
+- `/finance` — default equity, loan term, and mortgage mix ("תמהיל") used to compute the
+  estimated monthly mortgage payment and cash flow shown on every property card.
+- `/chat` — **AI Investment Advisor**: a chat loaded with your saved/for-later properties
+  (CMA, rental yield, mortgage/cash-flow figures) - ask things like "which saved property has
+  the best cash flow?" or "is this Bat Yam deal priced well?". Falls back to a few directly-
+  computable answers (best cash flow / yield / discount) when no `ANTHROPIC_API_KEY` is set.
+
+Every property card also shows its **estimated monthly rent and gross rental yield**
+(`services/rental_estimates.py` - a curated rent-per-sqm table by city, since there's no
+public rental-transaction registry like there is for sales) and an inline mortgage
+calculator widget that recomputes instantly (client-side, mirroring the backend formula)
+as you tweak equity/loan term for that one property.
 
 ## Filtering criteria (defaults, in `backend/app/config.py`)
 

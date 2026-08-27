@@ -49,4 +49,15 @@ export const api = {
     address?: string;
     radius_km?: number;
   }) => request<import("./types").SearchAreaSettings>("/api/settings/areas", { method: "PUT", body: JSON.stringify(payload) }),
+  updatePremiumCities: (premium_cities: string[]) =>
+    request<import("./types").SearchAreaSettings>("/api/settings/areas/premium-cities", {
+      method: "PUT",
+      body: JSON.stringify({ premium_cities }),
+    }),
+  getFinanceSettings: () => request<import("./types").FinanceSettings>("/api/settings/finance"),
+  updateFinanceSettings: (payload: import("./types").FinanceSettings) =>
+    request<import("./types").FinanceSettings>("/api/settings/finance", { method: "PUT", body: JSON.stringify(payload) }),
+  getChatMessages: () => request<import("./types").ChatMessage[]>("/api/chat/messages"),
+  sendChatMessage: (content: string) =>
+    request<import("./types").ChatMessage>("/api/chat/messages", { method: "POST", body: JSON.stringify({ content }) }),
 };

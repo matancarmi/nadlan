@@ -5,6 +5,7 @@ import logging
 from ..config import get_settings
 from ..models import Property
 from .gov_data.tax_authority import get_comparable_price_per_sqm
+from .rental_estimates import estimate_monthly_rent, gross_rental_yield_pct
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ def enrich_with_cma(prop: Property) -> None:
         prop.planning_status_key in ("tabah_valid", "permit_issued")
     )
     prop.is_high_value_deal = is_discount_deal or is_hot_presale
+
+
+def enrich_with_rental_yield(prop: Property) -> None:
+    """Estimate monthly rent and gross rental yield for the property."""
+    prop.estimated_monthly_rent = estimate_monthly_rent(prop.city, prop.size_sqm, prop.asset_type.value)
+    prop.gross_rental_yield_pct = gross_rental_yield_pct(prop.asking_price, prop.estimated_monthly_rent)
 
 
 def generate_ai_summary(prop: Property) -> None:
@@ -66,6 +73,7 @@ Listing:
 - Comparable market avg price/sqm (Tax Authority data): {prop.cma_avg_price_per_sqm} (n={prop.cma_sample_size})
 - Discount vs market: {prop.cma_discount_pct}%
 - Planning/project status: {prop.planning_status or "N/A"}
+- Estimated monthly rent: {prop.estimated_monthly_rent} NIS, gross rental yield: {prop.gross_rental_yield_pct}%
 
 Write summary/pros/cons in Hebrew, 1-3 short bullet points each."""
 
@@ -96,6 +104,10 @@ def _generate_rule_based(prop: Property) -> None:
         pros.append(f"מחיר נמוך בכ-{prop.cma_discount_pct}% מהממוצע באזור")
     elif prop.cma_discount_pct:
         cons.append(f"מחיר גבוה בכ-{abs(prop.cma_discount_pct)}% מהממוצע באזור")
+    if prop.gross_rental_yield_pct and prop.gross_rental_yield_pct >= 4.0:
+        pros.append(f"תשואת שכירות גולמית טובה: כ-{prop.gross_rental_yield_pct}%")
+    elif prop.gross_rental_yield_pct:
+        cons.append(f"תשואת שכירות גולמית נמוכה יחסית: כ-{prop.gross_rental_yield_pct}%")
     if prop.asset_type.value in ("new_project", "pinui_binui"):
         pros.append("פרויקט חדש/התחדשות עירונית - פוטנציאל השבחה")
         if prop.planning_status:
