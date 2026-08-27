@@ -40,4 +40,12 @@ export const api = {
     request(`/api/properties/${id}/inventory`, { method: "PATCH", body: JSON.stringify(payload) }),
   getGuide: () => request<import("./types").PlanningStage[]>("/api/guide/stages"),
   runIngestion: () => request("/api/ingest/run", { method: "POST" }),
+  getAreaSettings: () => request<import("./types").SearchAreaSettings>("/api/settings/areas"),
+  getAvailableCities: () => request<{ cities: string[] }>("/api/settings/areas/available-cities"),
+  updateAreaSettings: (payload: {
+    mode: "cities" | "radius";
+    cities?: string[];
+    address?: string;
+    radius_km?: number;
+  }) => request<import("./types").SearchAreaSettings>("/api/settings/areas", { method: "PUT", body: JSON.stringify(payload) }),
 };

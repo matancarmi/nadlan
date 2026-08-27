@@ -25,6 +25,7 @@ class RawListing:
     street: str | None = None
     source_url: str | None = None
     contact_info: str | None = None
+    image_url: str | None = None
     planning_status: str | None = None
     planning_status_key: str | None = None
     latitude: float | None = None

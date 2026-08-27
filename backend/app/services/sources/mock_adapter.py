@@ -19,6 +19,16 @@ _PLANNING_STATUSES = [
     ("permit_issued", "היתר בנייה הופק"),
 ]
 
+# Real, always-resolving destinations for each mock source (there is no
+# per-listing URL to link to since these are placeholder listings, so we link
+# to the real platform's relevant general page instead of a fake domain).
+_SOURCE_LINKS = {
+    "madlan": "https://www.madlan.co.il/",
+    "winwin": "https://www.winwin.co.il/",
+    "facebook_groups": "https://www.facebook.com/marketplace/category/propertyforsale/",
+    "gov_pinui_binui": "https://www.gov.il/he/departments/topics/urban_renewal",
+}
+
 
 class MockAdapter(SourceAdapter):
     def __init__(self, name: str, seed: int, presale_heavy: bool = False):
@@ -50,8 +60,9 @@ class MockAdapter(SourceAdapter):
                         size_sqm=float(size),
                         rooms=rng.choice([3, 3.5, 4, 4.5, 5]),
                         street=f"רחוב לדוגמה {i + 1}",
-                        source_url=f"https://example-{self.name}.co.il/listing/{city}-{i}",
+                        source_url=_SOURCE_LINKS.get(self.name, "https://www.gov.il/"),
                         contact_info="050-0000000 (מוצג לדוגמה)",
+                        image_url=f"https://picsum.photos/seed/{self.name}-{city}-{i}/640/420",
                         planning_status=planning_label if asset_type in ("new_project", "pinui_binui") else None,
                         planning_status_key=planning_key if asset_type in ("new_project", "pinui_binui") else None,
                         raw={"mock": True},

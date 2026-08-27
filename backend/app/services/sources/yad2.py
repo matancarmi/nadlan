@@ -115,6 +115,9 @@ class Yad2Adapter(SourceAdapter):
                         street=item.get("street"),
                         neighborhood=item.get("neighborhood"),
                         source_url=f"https://www.yad2.co.il/realestate/item/{item.get('id')}",
+                        image_url=item.get("image")
+                        or item.get("coverImage")
+                        or f"https://picsum.photos/seed/yad2-{item.get('id')}/640/420",
                         latitude=item.get("lat"),
                         longitude=item.get("lon"),
                         raw=item,
@@ -145,6 +148,7 @@ class Yad2Adapter(SourceAdapter):
                         street=f"רחוב הדוגמה {i + 1}",
                         source_url="https://www.yad2.co.il/realestate/forsale",
                         contact_info="050-0000000 (מוצג לדוגמה)",
+                        image_url=f"https://picsum.photos/seed/yad2-{city}-{i}/640/420",
                         raw={"mock": True},
                     )
                 )

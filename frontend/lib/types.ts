@@ -8,6 +8,7 @@ export interface Property {
   external_id: string;
   source_url: string | null;
   contact_info: string | null;
+  image_url: string | null;
   title: string;
   city: string;
   neighborhood: string | null;
@@ -56,3 +57,15 @@ export const INVENTORY_STATUS_LABELS: Record<InventoryStatus, string> = {
   contacted_agent: "יצרתי קשר עם המתווך",
   archived: "בארכיון",
 };
+
+export type AreaMode = "cities" | "radius";
+
+export interface SearchAreaSettings {
+  mode: AreaMode;
+  cities: string[] | null;
+  address: string | null;
+  radius_km: number | null;
+  center_lat: number | null;
+  center_lon: number | null;
+  resolved_cities: string[] | null;
+}

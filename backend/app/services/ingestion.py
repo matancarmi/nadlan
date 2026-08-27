@@ -9,6 +9,7 @@ from ..config import get_settings
 from ..models import AssetType, DecisionStatus, Property
 from .ai_analysis import enrich_with_cma, generate_ai_summary
 from .email_alerts import send_high_value_deal_alert
+from .geo import resolve_target_cities
 from .sources.base import RawListing, SourceAdapter
 from .sources.mock_adapter import MockAdapter
 from .sources.yad2 import Yad2Adapter
@@ -29,13 +30,14 @@ def get_all_adapters() -> list[SourceAdapter]:
 def run_daily_ingestion(db: Session) -> dict:
     settings = get_settings()
     adapters = get_all_adapters()
+    target_cities = resolve_target_cities(db)
 
     fetched, created, updated, errors = 0, 0, 0, []
     new_high_value_deals: list[Property] = []
 
     for adapter in adapters:
         try:
-            listings = adapter.fetch_listings(settings.target_cities, settings.max_budget_nis)
+            listings = adapter.fetch_listings(target_cities, settings.max_budget_nis)
         except Exception as exc:  # noqa: BLE001 - one bad source should never kill the run
             logger.error("Adapter %s failed entirely: %s", adapter.name, exc)
             errors.append(f"{adapter.name}: {exc}")
@@ -100,6 +102,7 @@ def _upsert_property(db: Session, raw: RawListing) -> tuple[bool, Property]:
     prop.asking_price = raw.asking_price
     prop.source_url = raw.source_url
     prop.contact_info = raw.contact_info
+    prop.image_url = raw.image_url
     prop.planning_status = raw.planning_status
     prop.planning_status_key = raw.planning_status_key
     prop.latitude = raw.latitude

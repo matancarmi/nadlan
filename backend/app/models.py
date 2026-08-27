@@ -40,6 +40,7 @@ class Property(Base):
     external_id: Mapped[str] = mapped_column(String(120), index=True)
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     contact_info: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # --- Core listing data ---
     title: Mapped[str] = mapped_column(String(300))
@@ -82,6 +83,27 @@ class Property(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class SearchSettings(Base):
+    """Singleton row (id=1) holding the user's configured search area.
+
+    mode="cities": use `cities` (a JSON list of city names) directly.
+    mode="radius": geocode `address` once and keep all properties within
+    `radius_km` of it, computed against a curated coordinate table
+    (see services/geo.py) rather than per-property geocoding.
+    """
+    __tablename__ = "search_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mode: Mapped[str] = mapped_column(String(20), default="cities")  # "cities" | "radius"
+    cities: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    radius_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    center_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    center_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resolved_cities: Mapped[list | None] = mapped_column(JSON, nullable=True)  # cache of last radius match
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class PlanningStage(Base):

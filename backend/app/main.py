@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import SessionLocal, init_db
-from .routers import auth, guide, ingest, properties
+from .routers import auth, guide, ingest, properties, settings as settings_router
 from .scheduler import start_scheduler
 from .seed_guide import seed_planning_stages
 
@@ -26,6 +26,7 @@ app.include_router(auth.router)
 app.include_router(properties.router)
 app.include_router(guide.router)
 app.include_router(ingest.router)
+app.include_router(settings_router.router)
 
 
 @app.on_event("startup")

@@ -15,8 +15,22 @@ export default function PropertyCard({
   children?: React.ReactNode;
 }) {
   const p = property;
+  const fallbackImage = `https://picsum.photos/seed/${p.source}-${p.id}/640/420`;
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="aspect-[16/10] w-full overflow-hidden bg-gray-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={p.image_url || fallbackImage}
+          alt={p.title}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (img.src !== fallbackImage) img.src = fallbackImage;
+          }}
+        />
+      </div>
       <div className="flex items-start justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
         <div>
           <div className="text-lg font-semibold leading-tight">{p.title}</div>

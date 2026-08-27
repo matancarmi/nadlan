@@ -8,6 +8,7 @@ const links = [
   { href: "/", label: "🏠 גילוי" },
   { href: "/saved", label: "❤️ שמורים" },
   { href: "/guide", label: "📖 מדריך תכנוני" },
+  { href: "/areas", label: "📍 אזורי חיפוש" },
 ];
 
 export default function Navbar() {
@@ -17,13 +18,13 @@ export default function Navbar() {
   if (pathname === "/login") return null;
 
   return (
-    <nav className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur">
-      <div className="flex gap-1">
+    <nav className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur">
+      <div className="flex flex-wrap gap-1">
         {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
               pathname === l.href ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"
             }`}
           >

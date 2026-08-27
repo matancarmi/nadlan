@@ -13,6 +13,7 @@ class PropertyOut(BaseModel):
     external_id: str
     source_url: str | None
     contact_info: str | None
+    image_url: str | None
     title: str
     city: str
     neighborhood: str | None
@@ -70,3 +71,26 @@ class PlanningStageOut(BaseModel):
 
 class LoginRequest(BaseModel):
     password: str
+
+
+class SearchSettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    mode: str
+    cities: list[str] | None
+    address: str | None
+    radius_km: float | None
+    center_lat: float | None
+    center_lon: float | None
+    resolved_cities: list[str] | None
+
+
+class SearchSettingsUpdate(BaseModel):
+    mode: str  # "cities" | "radius"
+    cities: list[str] | None = None
+    address: str | None = None
+    radius_km: float | None = None
+
+
+class AvailableCitiesOut(BaseModel):
+    cities: list[str]
